@@ -8,9 +8,15 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.david.myhistory.PresentationActivity$PlaceholderFragment" >
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/presentation" />
+    <ImageView
+        android:id="@+id/imageView2"
+        android:background="#000000"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginLeft="15dp"
+        android:layout_marginTop="14dp"
+        android:src="@drawable/playbutton" />
 
 </RelativeLayout>
