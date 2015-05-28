@@ -1,10 +1,16 @@
 package com.david.myhistory;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -24,6 +30,7 @@ public class WelcomeActivity extends Fragment {
 	private ImageView imageView1;
 	private final int PICKER = 1;
 	
+	
 	@Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState) {
@@ -33,8 +40,84 @@ public class WelcomeActivity extends Fragment {
         view.setBackgroundColor(Color.BLACK);
         imageView1 = (ImageView) view.findViewById(R.id.imageView1);
         textView1 = (TextView) view.findViewById(R.id.textView1);
-		
-      //set long click listener for each gallery thumbnail item
+
+
+        String imagePath = "";
+        try{
+    		String FILENAME = "welcomefile";
+
+    		FileInputStream fis = getActivity().openFileInput(FILENAME);
+    		int readInt = fis.read();
+    		
+    		while(readInt != -1){
+    			imagePath += (char) readInt;
+    			readInt = fis.read();
+    		}
+    		
+    		fis.close();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+        
+        
+        textView1.setText("Bienvenido!!!");
+        if(!imagePath.equals("")){
+        	
+        	ExifInterface exif = null;
+			try {
+				exif = new ExifInterface(imagePath);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}  
+        	int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
+        	//declare the bitmap
+	    	Bitmap pic = null;
+	    	
+        	//set the width and height we want to use as maximum display
+    		int targetWidth = 600;
+    		int targetHeight = 400;
+    		
+    		//create bitmap options to calculate and use sample size
+    		BitmapFactory.Options bmpOptions = new BitmapFactory.Options();
+    		
+    		//first decode image dimensions only - not the image bitmap itself
+    		bmpOptions.inJustDecodeBounds = true;
+    		
+    		pic = BitmapFactory.decodeFile(imagePath, bmpOptions);
+    		
+    		
+    		//image width and height before sampling
+    		int currHeight = bmpOptions.outHeight;
+    		int currWidth = bmpOptions.outWidth;
+    		
+    		//variable to store new sample size
+    		int sampleSize = 1;
+    		
+    		//calculate the sample size if the existing size is larger than target size
+    		if (currHeight>targetHeight || currWidth>targetWidth) {
+    		    //use either width or height
+    		    if (currWidth>currHeight)
+    		        sampleSize = Math.round((float)currHeight/(float)targetHeight);
+    		    else
+    		        sampleSize = Math.round((float)currWidth/(float)targetWidth);
+    		}
+    		
+    		//use the new sample size
+    		bmpOptions.inSampleSize = sampleSize;
+    		
+    		//now decode the bitmap using sample options
+    		bmpOptions.inJustDecodeBounds = false;
+    		
+    		//get the file as a bitmap
+    		pic = BitmapFactory.decodeFile(imagePath, bmpOptions);
+    		
+    		pic = this.rotateBitmap(pic, orientation);
+    		
+    		imageView1.setImageBitmap(pic);
+        }
+        
+        //set long click listener for each gallery thumbnail item
         imageView1.setOnLongClickListener(new OnLongClickListener() {
             //handle long clicks
         	@Override
@@ -62,6 +145,8 @@ public class WelcomeActivity extends Fragment {
     }
 	
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data); 
+		
 		if (resultCode == getActivity().RESULT_OK) {
 			    //check if we are returning from picture selection
 			    if (requestCode == PICKER) {
@@ -90,6 +175,15 @@ public class WelcomeActivity extends Fragment {
 			    	//if we have a new URI attempt to decode the image bitmap
 			    	if(pickedUri!=null) {
 			    	 
+			    		ExifInterface exif = null;
+						try {
+							exif = new ExifInterface(imgPath);
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}  
+			        	int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
+			        	
 			    		//set the width and height we want to use as maximum display
 			    		int targetWidth = 600;
 			    		int targetHeight = 400;
@@ -99,8 +193,10 @@ public class WelcomeActivity extends Fragment {
 			    		
 			    		//first decode image dimensions only - not the image bitmap itself
 			    		bmpOptions.inJustDecodeBounds = true;
+			    		
 			    		pic = BitmapFactory.decodeFile(imgPath, bmpOptions);
-			    		/* 
+			    		bmpOptions.inBitmap = this.rotateBitmap(pic, orientation);
+			    		
 			    		//image width and height before sampling
 			    		int currHeight = bmpOptions.outHeight;
 			    		int currWidth = bmpOptions.outWidth;
@@ -125,9 +221,20 @@ public class WelcomeActivity extends Fragment {
 			    		
 			    		//get the file as a bitmap
 			    		pic = BitmapFactory.decodeFile(imgPath, bmpOptions);
-			    		*/
+			    		
+			    		pic = this.rotateBitmap(pic, orientation);
+			    		
 			    		imageView1.setImageBitmap(pic);
 			    		
+			    		try{
+				    		String FILENAME = "welcomefile";
+	
+				    		FileOutputStream fos = getActivity().openFileOutput(FILENAME, getActivity().MODE_PRIVATE);
+				    		fos.write(imgPath.getBytes());
+				    		fos.close();
+			    		} catch (Exception ex) {
+			    			ex.printStackTrace();
+			    		}
 			    	}
 			             
 			    }
@@ -136,7 +243,55 @@ public class WelcomeActivity extends Fragment {
 			super.onActivityResult(requestCode, resultCode, data);
 	}
 	 
-	
+	public Bitmap rotateBitmap(Bitmap bitmap, int orientation) {
+
+	    try{
+	        Matrix matrix = new Matrix();
+	        switch (orientation) {
+	            case ExifInterface.ORIENTATION_NORMAL:
+	                return bitmap;
+	            case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
+	                matrix.setScale(-1, 1);
+	                break;
+	            case ExifInterface.ORIENTATION_ROTATE_180:
+	                matrix.setRotate(180);
+	                break;
+	            case ExifInterface.ORIENTATION_FLIP_VERTICAL:
+	                matrix.setRotate(180);
+	                matrix.postScale(-1, 1);
+	                break;
+	            case ExifInterface.ORIENTATION_TRANSPOSE:
+	                matrix.setRotate(90);
+	                matrix.postScale(-1, 1);
+	                break;
+	           case ExifInterface.ORIENTATION_ROTATE_90:
+	               matrix.setRotate(90);
+	               break;
+	           case ExifInterface.ORIENTATION_TRANSVERSE:
+	               matrix.setRotate(-90);
+	               matrix.postScale(-1, 1);
+	               break;
+	           case ExifInterface.ORIENTATION_ROTATE_270:
+	               matrix.setRotate(-90);
+	               break;
+	           default:
+	               return bitmap;
+	        }
+	        try {
+	            Bitmap bmRotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+	            bitmap.recycle();
+	            return bmRotated;
+	        }
+	        catch (OutOfMemoryError e) {
+	            e.printStackTrace();
+	            return null;
+	        }
+	    }
+	    catch (Exception e) {
+	        e.printStackTrace();
+	        return null;
+	    }
+	}
 	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
